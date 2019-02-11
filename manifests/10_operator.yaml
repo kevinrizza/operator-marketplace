@@ -28,6 +28,8 @@ spec:
             name: healthz
           command:
           - marketplace-operator
+          args:
+          - -registryServerImage=docker.io/tohinkashem/my-registry:latest
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:
