@@ -7,6 +7,7 @@ import (
 
 	"github.com/operator-framework/operator-sdk/pkg/test"
 
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,5 +39,33 @@ func WaitForResult(t *testing.T, f *test.Framework, result runtime.Object, names
 		return err
 	}
 	t.Logf("Runtime object %s has been created\n", name)
+	return nil
+}
+
+// This function checks if a given deployment has readied all of its replicas.
+// If it has not, it retries until the deployment is ready or it reaches the timeout.
+func WaitForSuccessfulDeployment(t *testing.T, f *test.Framework, deployment apps.Deployment) error {
+	// If deployment is already ready, lets just return.
+	if deployment.Status.ReadyReplicas == *deployment.Spec.Replicas {
+		return nil
+	}
+
+	namespacedName := types.NamespacedName{Name: deployment.Name, Namespace: deployment.Namespace}
+	result := &apps.Deployment{}
+	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+		err = f.Client.Get(context.TODO(), namespacedName, result)
+		if err != nil {
+			return false, err
+		}
+		if deployment.Status.ReadyReplicas == *deployment.Spec.Replicas {
+			return true, nil
+		}
+		t.Logf("Waiting for deployment %s to have all replicas ready\n", deployment.Name)
+		return false, nil
+	})
+	if err != nil {
+		return err
+	}
+	t.Logf("Deployment %s has been initialized successfully\n", deployment.Name)
 	return nil
 }
